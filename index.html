@@ -14,10 +14,32 @@
             background-color: #111122; border: 2px solid #333; overflow: hidden;
         }
 
-        .character { position: absolute; width: 32px; height: 32px; border-radius: 4px; font-size: 10px; color: #fff; text-align: center; line-height: 32px; font-weight: bold; }
-        #player { background-color: #ff3333; border-radius: 50%; z-index: 10; }
-        #police { background-color: #00aaff; left: 184px; top: 150px; }
-        #spy { background-color: #55ff55; left: 80px; top: 250px; color: #000; }
+/* --- 以下の部分を見つけて書き換えてください --- */
+
+.character { 
+    position: absolute; 
+    width: 32px; 
+    height: 32px; 
+    z-index: 10;
+    background-size: contain; /* 画像を枠内にきれいに収める設定 */
+    background-repeat: no-repeat;
+}
+
+/* 各キャラクターの背景に、アップロードした画像を指定する */
+#player { 
+    background-image: url('player.png'); 
+    z-index: 12; 
+}
+#police { 
+    background-image: url('police.png'); 
+    left: 184px; 
+    top: 150px; 
+}
+#spy { 
+    background-image: url('spy.png'); 
+    left: 80px; 
+    top: 250px; 
+}
 
         .label { position: absolute; width: 80px; text-align: center; color: #fff; font-size: 11px; transform: translateX(-24px); }
 
@@ -53,10 +75,10 @@
 
 <div id="game-screen">
     <div style="position: absolute; left: 184px; top: 130px;" class="label">男性警察官</div>
-    <div id="police" class="character">警</div>
+    <div id="police" class="character"></div>
     
     <div style="position: absolute; left: 80px; top: 230px;" class="label">情報屋</div>
-    <div id="spy" class="character">情</div>
+    <div id="spy" class="character"></div>
     
     <div id="player" class="character"></div>
 
