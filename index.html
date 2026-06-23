@@ -94,7 +94,6 @@
         <button id="btn-a">A</button>
     </div>
 </div>
-
 <script>
 const pElem = document.getElementById('player');
 const policeElem = document.getElementById('police');
@@ -114,7 +113,6 @@ let hasHintCard = false;
 let animFrame = 0;
 let currentDirection = 'down';
 
-// 🚨 【修正】エラーの原因だった謎の英単語(agitation)を完全に削除しました 🚨
 const policeDialogues = [
     "警察官：<br>「よく来てくれた。実は現在、我々警察はある重大な事件の犯人『ミスターX』を追っている…。」",
     "警察官：<br>「お前に頼みがある。この会場内の各イベントブースに潜む【情報屋】から、ミスターXに関する『ヒントカード』を集めてきてほしい。」",
@@ -166,7 +164,7 @@ function stopMove() {
     setSpriteGraphic(pElem, currentDirection, false);
 }
 
-// ボタンイベント登録（スマホ・マウスクリック両対応）
+// ボタンイベント登録
 const setupBtn = (id, dx, dy, dir) => {
     const btn = document.getElementById(id);
     btn.addEventListener('touchstart', (e) => { e.preventDefault(); startMove(dx, dy, dir); });
@@ -260,44 +258,44 @@ function handleAction() {
     else if (distToSpy < 45) {
         isTalking = true;
         msgBox.style.display = 'block';
+        setSpriteGraphic(pElem, 'left', false); 
+        setSpriteGraphic(spyElem, 'right', false); 
+        if (hasHintCard) {
+            currentTarget = 'spy_end';
+            msgText.innerHTML = "情報屋：<br>「ミッションの件は伝えたはずだ。さあ、手に入れたヒントカードを早く警察官のところに持っていきな。」";
+            promptIcon.innerHTML = '●';
+        } else {
+            currentTarget = 'spy';
+            msgText.innerHTML = "情報屋：<br>「おいおい、警察の回し者が何の用だ？…ミスターXの情報が欲しい？フン、タダでは教えられんな。俺の【ミッション】に挑戦するか？」";
+            promptIcon.style.display = 'none';
+            document.getElementById('choices-area').style.display = 'flex';
+            isChoosing = true;
+        }
+    }
+}
 
-setSpriteGraphic(pElem, 'left', false);
-setSpriteGraphic(spyElem, 'right', false);
-if (hasHintCard) {
-currentTarget = 'spy_end';
-msgText.innerHTML = "情報屋：
-「ミッションの件は伝えたはずだ。さあ、手に入れたヒントカードを早く警察官のところに持っていきな。」";
-promptIcon.innerHTML = '●';
-} else {
-currentTarget = 'spy';
-msgText.innerHTML = "情報屋：
-「おいおい、警察の回し者が何の用だ？…ミスターXの情報が欲しい？フン、タダでは教えられんな。俺の【ミッション】に挑戦するか？」";
-promptIcon.style.display = 'none';
-document.getElementById('choices-area').style.display = 'flex';
-isChoosing = true;
-}
-}
-}
 function selectChoice(num) {
-isChoosing = false;
-document.getElementById('choices-area').style.display = 'none';
-const msgText = document.getElementById('msg-text');
-const promptIcon = document.getElementById('prompt-icon');
-promptIcon.style.display = 'block';
-promptIcon.innerHTML = '●';
+    isChoosing = false;
+    document.getElementById('choices-area').style.display = 'none';
+    const msgText = document.getElementById('msg-text');
+    const promptIcon = document.getElementById('prompt-icon');
+    promptIcon.style.display = 'block';
+    promptIcon.innerHTML = '●';
 
-if (num === 1) {
-msgText.innerHTML = "情報屋：
-「いい度胸だ。では【実際のイベントブースの展示】を見て、ミスターXの靴の色を確認してくるんだ！それが君のミッションだ。クリアしたらカードをやろう」";
-hasHintCard = true;
-} else {
-msgText.innerHTML = "情報屋：
-「冷やかしなら帰んな。ミスターXの情報が欲しくなったらまた来な。」";
-}
+    if (num === 1) {
+        msgText.innerHTML = "情報屋：<br>「いい度胸だ。では【実際のイベントブースの展示】を見て、ミスターXの靴の色を確認してくるんだ！それが君のミッションだ。クリアしたらカードをやろう」";
+        hasHintCard = true;
+    } else {
+        msgText.innerHTML = "情報屋：<br>「冷やかしなら帰んな。ミスターXの情報が欲しくなったらまた来な。」";
+    }
 }
 
 function closeDialogue() {
-document.getElementById('msg-box').style.display = 'none';
-isTalking = false;
-currentTarget = null;
+    document.getElementById('msg-box').style.display = 'none';
+    isTalking = false;
+    currentTarget = null;
 }
+</script>
+</body>
+</html>
+
