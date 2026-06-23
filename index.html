@@ -14,27 +14,27 @@
             background-color: #111122; border: 2px solid #333; overflow: hidden;
         }
 
-        /* 🚨 全キャラクターの共通ドット絵表示設定 🚨 */
+        /* キャラクター共通設定 */
         .character { 
             position: absolute; 
             width: 32px; 
-            height: 48px; /* 縦長のドット絵にも対応できるよう高さを48pxに確保 */
+            height: 48px; 
             z-index: 10;
             background-repeat: no-repeat;
-            /* どんな画像サイズでも横3マス・縦4マスとして自動計算してフィットさせる魔法の設定 */
             background-size: 300% 400%; 
             image-rendering: pixelated;
             image-rendering: crisp-edges;
-            background-position: 50% 0%; /* 初期状態は正面・直立 */
+            background-position: 50% 0%; 
         }
         
-        /* それぞれ個別の画像を背景に指定 */
+        /* 画像の割り当て */
         #player { background-image: url('player.png'); z-index: 12; }
         #police { background-image: url('police.png'); left: 184px; top: 150px; }
         #spy { background-image: url('spy.png'); left: 80px; top: 250px; }
 
         .label { position: absolute; width: 80px; text-align: center; color: #fff; font-size: 11px; transform: translateX(-24px); z-index: 5; }
 
+        /* FF6風ウィンドウ */
         #msg-box {
             position: absolute; bottom: 140px; left: 5%; width: 90%; height: 110px;
             background: linear-gradient(to bottom, #000066, #000033);
@@ -47,9 +47,10 @@
         #choices-area { position: absolute; bottom: 260px; left: 5%; width: 90%; display: none; justify-content: space-around; z-index: 25; }
         .choice-btn { background: #000055; border: 2px solid #fff; color: #fff; padding: 8px 16px; border-radius: 4px; font-size: 13px; cursor: pointer; }
 
+        /* コントローラー */
         #controls { position: absolute; bottom: 10px; left: 0; width: 100%; height: 120px; display: flex; justify-content: space-between; padding: 0 20px; align-items: center; z-index: 30; }
         #d-pad { position: relative; width: 100px; height: 100px; }
-        .pad-btn { position: absolute; width: 34px; height: 34px; background-color: #555; border: 1px solid #777; border-radius: 6px; }
+        .pad-btn { position: absolute; width: 34px; height: 34px; background-color: #555; border: 1px solid #777; border-radius: 6px; cursor: pointer; }
         .pad-btn:active { background-color: #888; }
         #btn-up { top: 0; left: 33px; }
         #btn-down { bottom: 0; left: 33px; }
@@ -110,21 +111,20 @@ let talkPage = 0;
 let currentTarget = null;
 let hasHintCard = false;
 
-// アニメーション・向き管理
 let animFrame = 0;
 let currentDirection = 'down';
 
 const policeDialogues = [
     "警察官：<br>「よく来てくれた。実は現在、我々警察はある重大な事件の犯人『ミスターX』を追っている…。」",
     "警察官：<br>「お前に頼みがある。この会場内の各イベントブースに潜む【情報屋】から、ミスターXに関する『ヒントカード』を集めてきてほしい。」",
-    "警察官：<br>「ただし、情報屋どもは口が固い。彼らの信用を得るためには、各ブースで提示される【ミッション】を達成する必要 agitation だろう。」",
-    "警察官：<br>「無事にヒントカードを手に入れたら、またここに戻ってきて私に報告してくれ。頼んだぞ！」"
+    "警察官：<br>「ただし、情報屋どもは口が固い。彼らの信用を得るためには、各ブースで提示される【ミッション】を達成する必要があるだろう。」",
+    "警察官：<br>「無さにヒントカードを手に入れたら、またここに戻ってきて私に報告してくれ。頼んだぞ！」"
 ];
 
-// 🚨 どんな画像サイズでも100%バグらずに向きとアニメを計算する関数に改良 🚨
+// グラフィック表示制御関数
 function setSpriteGraphic(element, dir, isMoving, frameOffset = 0) {
-    let xPercent = 50; // 中央（直立）
-    let yPercent = 0;  // 下向き
+    let xPercent = 50; 
+    let yPercent = 0;  
 
     if (dir === 'down') yPercent = 0;
     if (dir === 'left') yPercent = 33.3;
@@ -133,18 +133,18 @@ function setSpriteGraphic(element, dir, isMoving, frameOffset = 0) {
 
     if (isMoving) {
         let f = (Math.floor(frameOffset) % 4);
-        if (f === 0) xPercent = 0;    // 左足
-        if (f === 1 || f === 3) xPercent = 50; // 直立
-        if (f === 2) xPercent = 100;  // 右足
+        if (f === 0) xPercent = 0;    
+        if (f === 1 || f === 3) xPercent = 50; 
+        if (f === 2) xPercent = 100;  
     }
     element.style.backgroundPosition = `${xPercent}% ${yPercent}%`;
 }
 
-// 初期位置の向きを設定（警察官は下向き、情報屋は右向きにして待機させる）
+// 初期向き
 setSpriteGraphic(policeElem, 'down', false);
 setSpriteGraphic(spyElem, 'right', false);
 
-// 移動処理（完全に数値計算のみで行うためフリーズしません）
+// 移動関数
 let moveInterval = null;
 function startMove(dx, dy, dir) {
     if (isTalking || isChoosing) return;
@@ -165,18 +165,23 @@ function stopMove() {
     setSpriteGraphic(pElem, currentDirection, false);
 }
 
-// スマホ操作の登録
+// 🚨 【バグ完全修正】スマホ・PC両方で正しく向き（dir）を受け取って動くように修正 🚨
 const setupBtn = (id, dx, dy, dir) => {
     const btn = document.getElementById(id);
+    // スマホ用
     btn.addEventListener('touchstart', (e) => { e.preventDefault(); startMove(dx, dy, dir); });
+    // PCマウステスト用
+    btn.addEventListener('mousedown', (e) => { e.preventDefault(); startMove(dx, dy, dir); });
 };
 setupBtn('btn-up', 0, -4, 'up');
 setupBtn('btn-down', 0, 4, 'down');
 setupBtn('btn-left', -4, 0, 'left');
 setupBtn('btn-right', 4, 0, 'right');
-window.addEventListener('touchend', stopMove);
 
-// PCキーボード操作の登録
+window.addEventListener('touchend', stopMove);
+window.addEventListener('mouseup', stopMove);
+
+// PCキーボード操作
 const keys = {};
 window.addEventListener('keydown', (e) => { keys[e.key] = true; if(e.key === ' ' || e.key === 'z') handleAction(); });
 window.addEventListener('keyup', (e) => { keys[e.key] = false; });
@@ -198,15 +203,15 @@ setInterval(() => {
         currentDirection = dir;
         setSpriteGraphic(pElem, dir, true, animFrame);
     } else {
-        setSpriteGraphic(pElem, currentDirection, false);
+        // キーボードを離した時は移動ボタンが押されていなければ停止グラフィックにする
+        if (!moveInterval) setSpriteGraphic(pElem, currentDirection, false);
     }
 }, 20);
 
-// 常時、警察官と情報屋をその場でトコトコ足踏み（足踏みアニメーション）させる処理
+// NPCの常時足踏みアニメーション
 let npcAnimFrame = 0;
 setInterval(() => {
     npcAnimFrame += 1;
-    // 警察官と情報屋がそれぞれの待機方向を向いたまま足踏みする
     if (!isTalking) {
         setSpriteGraphic(policeElem, 'down', true, npcAnimFrame);
         setSpriteGraphic(spyElem, 'right', true, npcAnimFrame);
@@ -242,7 +247,7 @@ function handleAction() {
         isTalking = true;
         msgBox.style.display = 'block';
         setSpriteGraphic(pElem, 'up', false); 
-        setSpriteGraphic(policeElem, 'down', false); // 話す時は足踏みを止める
+        setSpriteGraphic(policeElem, 'down', false); 
         if (hasHintCard) {
             currentTarget = 'police_end';
             msgText.innerHTML = "警察官：<br>「おお！情報屋からヒントカードを勝ち取ってきたな！さすがは優秀な捜査官だ。これでミスターXの逮捕に一歩近づいたぞ！」";
@@ -257,4 +262,4 @@ function handleAction() {
     else if (distToSpy < 45) {
         isTalking = true;
 
-msgBox.style.display = 'block';setSpriteGraphic(pElem, 'left', false);setSpriteGraphic(spyElem, 'right', false); // 話す時は足踏みを止めるif (hasHintCard) {currentTarget = 'spy_end';msgText.innerHTML = "情報屋：「ミッションの件は伝えたはずだ。さあ、手に入れたヒントカードを早く警察官のところに持っていきな。」";promptIcon.innerHTML = '●';} else {currentTarget = 'spy';msgText.innerHTML = "情報屋：「おいおい、警察の回し者が何の用だ？…ミスターXの情報が欲しい？フン、タダでは教えられんな。俺の【ミッション】に挑戦するか？」";promptIcon.style.display = 'none';document.getElementById('choices-area').style.display = 'flex';isChoosing = true;}}}function selectChoice(num) {isChoosing = false;document.getElementById('choices-area').style.display = 'none';const msgText = document.getElementById('msg-text');const promptIcon = document.getElementById('prompt-icon');promptIcon.style.display = 'block';promptIcon.innerHTML = '●';if (num === 1) {msgText.innerHTML = "情報屋：「いい度胸だ。では【実際のイベントブースの展示】を見て、ミスターXの靴の色を確認してくるんだ！それが君のミッションだ。クリアしたらカードをやろう」";hasHintCard = true;} else {msgText.innerHTML = "情報屋：「冷やかしなら帰んな。ミスターXの情報が欲しくなったらまた来な。」";}}function closeDialogue() {document.getElementById('msg-box').style.display = 'none';isTalking = false;currentTarget = null;}
+msgBox.style.display = 'block';setSpriteGraphic(pElem, 'left', false);setSpriteGraphic(spyElem, 'right', false);if (hasHintCard) {currentTarget = 'spy_end';msgText.innerHTML = "情報屋：「ミッションの件は伝えたはずだ。さあ、手に入れたヒントカードを早く警察官のところに持っていきな。」";promptIcon.innerHTML = '●';} else {currentTarget = 'spy';msgText.innerHTML = "情報屋：「おいおい、警察の回し者が何の用だ？…ミスターXの情報が欲しい？フン、タダでは教えられんな。俺の【ミッション】に挑戦するか？」";promptIcon.style.display = 'none';document.getElementById('choices-area').style.display = 'flex';isChoosing = true;}}}function selectChoice(num) {isChoosing = false;document.getElementById('choices-area').style.display = 'none';const msgText = document.getElementById('msg-text');const promptIcon = document.getElementById('prompt-icon');promptIcon.style.display = 'block';promptIcon.innerHTML = '●';if (num === 1) {msgText.innerHTML = "情報屋：「いい度胸だ。では【実際のイベントブースの展示】を見て、ミスターXの靴の色を確認してくるんだ！それが君のミッションだ。クリアしたらカードをやろう」";hasHintCard = true;} else {msgText.innerHTML = "情報屋：「冷やかしなら帰んな。ミスターXの情報が欲しくなったらまた来な。」";}}function closeDialogue() {document.getElementById('msg-box').style.display = 'none';isTalking = false;currentTarget = null;}
