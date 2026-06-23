@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FF6風 潜入捜査ゲーム</title>
-    <!-- 互換性と動作が100%安定しているバージョンを読み込み -->
+    <title>潜入捜査ゲーム</title>
+    <!-- 最も安定しているPhaserの本体ファイルのみを読み込み -->
     <script src="https://jsdelivr.net"></script>
     <style>
         body { margin: 0; padding: 0; background-color: #000; overflow: hidden; }
@@ -48,23 +48,23 @@ const policeDialogues = [
 let btnUp, btnDown, btnLeft, btnRight, btnA;
 
 function preload() {
-    // 外部からの画像読み込みエラーを防ぐため、Phaser公式の超安定アセットに変更
-    this.load.image('player_img', 'https://phaser.io');
-    this.load.image('police_img', 'https://phaser.io');
-    this.load.image('spy_img', 'https://phaser.io');
+    // 外部画像の読み込み（this.load.image）をすべて削除しました。
+    // これにより、通信エラーによる画面真っ黒（フリーズ）を100%防ぎます。
 }
 
 function create() {
-    // 1. 男性警察官（ブロックの見た目）
-    policeNPC = this.add.sprite(200, 150, 'police_img').setScale(1.5);
+    // 画像の代わりに、Phaser内部の機能で「色付きの丸や四角」を直接描画します
+    
+    // 1. 男性警察官（水色の四角）
+    policeNPC = this.add.rectangle(200, 150, 32, 32, 0x00aaff);
     this.add.text(165, 110, '男性警察官', { fontSize: '12px', fill: '#fff' });
 
-    // 2. 情報屋ブース（メロンの見た目）
-    spyNPC = this.add.sprite(80, 250, 'spy_img').setScale(1.5);
+    // 2. 情報屋ブース（黄緑色の四角）
+    spyNPC = this.add.rectangle(80, 250, 32, 32, 0x55ff55);
     this.add.text(50, 210, '情報屋ブース', { fontSize: '12px', fill: '#ffcc00' });
 
-    // 3. プレイヤー（リンゴの見た目）
-    player = this.add.sprite(200, 350, 'player_img').setScale(1.5);
+    // 3. プレイヤー（あなた・赤色の丸）
+    player = this.add.circle(200, 350, 16, 0xff3333);
 
     cursors = this.input.keyboard.createCursorKeys();
 
