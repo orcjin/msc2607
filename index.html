@@ -2,10 +2,9 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="robots" content="noindex, nofollow">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FF6風 イベント体験ゲーム (Phaser 4)</title>
-    <!-- Phaser 4 の最新版CDNを読み込み -->
+    <title>潜入捜査ゲーム</title>
+    <!-- Phaser 4 最新版の読み込み -->
     <script src="https://jsdelivr.net"></script>
     <style>
         body { margin: 0; padding: 0; background-color: #000; overflow: hidden; }
@@ -15,7 +14,6 @@
 <body>
 
 <script>
-// ゲームの設定（スマホの縦画面を想定したサイズ）
 const config = {
     type: Phaser.AUTO,
     width: 400,
@@ -26,94 +24,185 @@ const config = {
 
 const game = new Phaser.Game(config);
 let player;
-let npc;
+let policeNPC;
+let spyNPC; // 情報屋NPC
 let cursors;
-let msgBox;
-let msgText;
-let isTalking = false;
+let msgBox, msgText, promptText;
+let choiceBox1, choiceBox2, choiceText1, choiceText2; // 選択肢用UI
 
-// スマホ操作用の仮想ボタン
+// 状態管理変数
+let currentEventTarget = null; // 現在話している相手 ('police' か 'spy')
+let isTalking = false;
+let isChoosing = false; // 選択肢が表示されているか
+let talkPage = 0;
+let hasHintCard = false; // ヒントカードを持っているか
+
+// 警察官のセリフ
+const policeDialogues = [
+    "警察官：\n「よく来てくれた。実は現在、我々警察はある重大な事件の犯人『ミスターX』を追っている…。」",
+    "警察官：\n「そこで君に頼みがある。この会場内の各イベントブースに潜む【情報屋】から、ミスターXに関する『ヒントカード』を集めてきてほしい。」",
+    "警察官：\n「ただし、情報屋どもは口が固い。彼らの信用を得るためには、各ブースで提示される【ミッション】を達成する必要があるだろう。」",
+    "警察官：\n「無事にヒントカードを手に入れたら、またここに戻ってきて私に報告してくれ。頼んだぞ！」"
+];
+
+// スマホ操作用ボタン
 let btnUp, btnDown, btnLeft, btnRight, btnA;
 
 function preload() {
-    // 画像アセットがないため、今回はpreloadは空欄（四角形で代用）
+    // 【ドット絵素材の読み込み】無料公開されているドット絵を代用（32x32ピクセル）
+    // プレイヤー（青髪の剣士）、警察（緑の兵士）、情報屋（ローブの老人）
+    this.load.image('player_img', 'https://phaser.io');
+    this.load.image('police_img', 'https://phaser.io');
+    this.load.image('spy_img', 'https://phaser.io');
 }
 
 function create() {
-    // 1. イベント会場の受付NPC（緑色の四角）
-    npc = this.add.rectangle(200, 150, 32, 32, 0x00ff00);
-    this.add.text(170, 110, '受付係', { fontSize: '14px', fill: '#fff' });
+    // 1. 男性警察官（ドット絵化）
+    policeNPC = this.add.sprite(200, 150, 'police_img').setScale(1.5);
+    this.add.text(165, 110, '男性警察官', { fontSize: '12px', fill: '#fff' });
 
-    // 2. プレイヤー（FF6の勇者役・青色の四角）
-    player = this.add.rectangle(200, 300, 32, 32, 0x0000ff);
+    // 2. 新要素：情報屋ブース（画面左上に配置、ドット絵化）
+    spyNPC = this.add.sprite(80, 250, 'spy_img').setScale(1.5);
+    this.add.text(50, 210, '情報屋ブース', { fontSize: '12px', fill: '#ffcc00' });
 
-    // 3. キーボード操作の設定（PCテスト用）
+    // 3. プレイヤー（ドット絵化）
+    player = this.add.sprite(200, 350, 'player_img').setScale(1.5);
+
+    // 4. キーボード設定
     cursors = this.input.keyboard.createCursorKeys();
 
-    // 4. メッセージウィンドウ（最初は非表示）
-    msgBox = this.add.rectangle(200, 500, 360, 100, 0x000088).setStrokeStyle(3, 0xffffff).setAlpha(0);
-    msgText = this.add.text(40, 470, '', { fontSize: '16px', fill: '#fff', wordWrap: { width: 320 } }).setAlpha(0);
+    // 5. メッセージウィンドウ（FF6風のネイビー・白枠）
+    msgBox = this.add.rectangle(200, 500, 360, 120, 0x000055).setStrokeStyle(3, 0xffffff).setAlpha(0);
+    msgText = this.add.text(40, 460, '', { fontSize: '14px', fill: '#fff', wordWrap: { width: 320 }, lineSpacing: 6 }).setAlpha(0);
+    promptText = this.add.text(340, 535, '▼', { fontSize: '14px', fill: '#fff' }).setAlpha(0);
 
-    // 5. 【スマホ用】画面下のバーチャル十字キーとAボタンの描画
+    // 6. クイズ・ミッション用の選択肢ウィンドウ（はい／いいえ）
+    choiceBox1 = this.add.rectangle(120, 410, 120, 40, 0x000055).setStrokeStyle(2, 0xffffff).setAlpha(0).setInteractive();
+    choiceText1 = this.add.text(95, 400, '1: 挑戦する', { fontSize: '14px', fill: '#fff' }).setAlpha(0);
+    
+    choiceBox2 = this.add.rectangle(280, 410, 120, 40, 0x000055).setStrokeStyle(2, 0xffffff).setAlpha(0).setInteractive();
+    choiceText2 = this.add.text(255, 400, '2: やめる', { fontSize: '14px', fill: '#fff' }).setAlpha(0);
+
+    // 選択肢のクリックイベント登録
+    setupChoiceButtons();
+
+    // 7. スマホ用コントローラーの配置
     createMobileControls(this);
 }
 
 function update() {
-    if (isTalking) return; // 会話中は動けない
+    if (isTalking || isChoosing) return; // 会話・選択中は動けない
 
     let speed = 4;
+    if (cursors.left.isDown || (btnLeft && btnLeft.isDown)) player.x -= speed;
+    else if (cursors.right.isDown || (btnRight && btnRight.isDown)) player.x += speed;
 
-    // PCキーボード、またはスマホボタンの入力検知
-    if (cursors.left.isDown || (btnLeft && btnLeft.isDown)) {
-        player.x -= speed;
-    } else if (cursors.right.isDown || (btnRight && btnRight.isDown)) {
-        player.x += speed;
-    }
-
-    if (cursors.up.isDown || (btnUp && btnUp.isDown)) {
-        player.y -= speed;
-    } else if (cursors.down.isDown || (btnDown && btnDown.isDown)) {
-        player.y += speed;
-    }
+    if (cursors.up.isDown || (btnUp && btnUp.isDown)) player.y -= speed;
+    else if (cursors.down.isDown || (btnDown && btnDown.isDown)) player.y += speed;
 }
 
-// スマホ用コントローラーを作る関数
+// 選択肢（ミッションを受けるかどうか）の処理
+function setupChoiceButtons() {
+    choiceBox1.on('pointerdown', () => {
+        hideChoices();
+        msgText.setText("情報屋：\n「いい度胸だ。では【実際のイベントブースの展示】を見て、ミスターXの靴の色を確認してくるんだ！それが君のミッションだ。クリアしたらカードをやろう」");
+        hasHintCard = true; // 擬似的にクリア（カード入手）
+        promptText.setAlpha(1).setText('●');
+    });
+
+    choiceBox2.on('pointerdown', () => {
+        hideChoices();
+        msgText.setText("情報屋：\n「冷やかしなら帰んな。ミスターXの情報が欲しくなったらまた来な。」");
+        promptText.setAlpha(1).setText('●');
+    });
+}
+
+function showChoices() {
+    isChoosing = true;
+    choiceBox1.setAlpha(1); choiceText1.setAlpha(1);
+    choiceBox2.setAlpha(1); choiceText2.setAlpha(1);
+}
+
+function hideChoices() {
+    isChoosing = false;
+    choiceBox1.setAlpha(0); choiceText1.setAlpha(0);
+    choiceBox2.setAlpha(0); choiceText2.setAlpha(0);
+}
+
 function createMobileControls(scene) {
     const btnColor = 0x555555;
     
-    // 各ボタンを画面下部に配置（インタラクティブ設定）
-    btnUp = scene.add.circle(100, 420, 25, btnColor).setInteractive();
-    btnDown = scene.add.circle(100, 520, 25, btnColor).setInteractive();
-    btnLeft = scene.add.circle(50, 470, 25, btnColor).setInteractive();
-    btnRight = scene.add.circle(150, 470, 25, btnColor).setInteractive();
+    btnUp = scene.add.circle(100, 400, 25, btnColor).setInteractive();
+    btnDown = scene.add.circle(100, 500, 25, btnColor).setInteractive();
+    btnLeft = scene.add.circle(50, 450, 25, btnColor).setInteractive();
+    btnRight = scene.add.circle(150, 450, 25, btnColor).setInteractive();
     
-    // Aボタン（決定キー）
-    btnA = scene.add.circle(320, 470, 35, 0xcc0000).setInteractive();
-    scene.add.text(312, 458, 'A', { fontSize: '24px', fill: '#fff', fontWeight: 'bold' });
+    btnA = scene.add.circle(320, 450, 35, 0xcc0000).setInteractive();
+    scene.add.text(312, 438, 'A', { fontSize: '24px', fill: '#fff', fontWeight: 'bold' });
 
-    // タッチイベントの登録
-    setupNavButton(btnUp);
-    setupNavButton(btnDown);
-    setupNavButton(btnLeft);
-    setupNavButton(btnRight);
+    setupNavButton(btnUp); setupNavButton(btnDown); setupNavButton(btnLeft); setupNavButton(btnRight);
 
-    // Aボタンを押した時の処理（受付との距離を判定して会話）
     btnA.on('pointerdown', () => {
-        let dist = Phaser.Math.Distance.Between(player.x, player.y, npc.x, npc.y);
+        if (isChoosing) return; // 選択肢が出ている時はAボタンを無効化
+
+        // 警察官との距離、情報屋との距離を計算
+        let distToPolice = Phaser.Math.Distance.Between(player.x, player.y, policeNPC.x, policeNPC.y);
+        let distToSpy = Phaser.Math.Distance.Between(player.x, player.y, spyNPC.x, spyNPC.y);
         
+        // --- 1. 会話中の処理 ---
         if (isTalking) {
-            // 会話終了
-            msgBox.setAlpha(0);
-            msgText.setAlpha(0);
-            isTalking = false;
-        } else if (dist < 50) {
-            // 受付の近くでAを押したら会話開始
-            msgBox.setAlpha(1);
-            msgText.setAlpha(1);
-            msgText.setText("受付：\n「ようこそイベント会場へ！\nまずは受付のため、お名刺を1枚ご提示ください」");
+            if (currentEventTarget === 'police') {
+                talkPage++;
+                if (talkPage < policeDialogues.length) {
+                    msgText.setText(policeDialogues[talkPage]);
+                    if (talkPage === policeDialogues.length - 1) promptText.setText('●');
+                } else {
+                    closeDialogue();
+                }
+            } else if (currentEventTarget === 'spy' || currentEventTarget === 'police_end') {
+                closeDialogue();
+            }
+        } 
+        // --- 2. 警察官に話しかけた時 ---
+        else if (distToPolice < 50) {
             isTalking = true;
+            msgBox.setAlpha(1); msgText.setAlpha(1);
+            
+            if (hasHintCard) {
+                // カードを持っている状態での報告
+                currentEventTarget = 'police_end';
+                msgText.setText("警察官：\n「おお！情報屋からヒントカードを勝ち取ってきたな！さすがは優秀な捜査官だ。これでミスターXの逮捕に一歩近づいたぞ！」");
+                promptText.setAlpha(1).setText('●');
+            } else {
+                // 通常の最初の会話
+                currentEventTarget = 'police';
+                talkPage = 0;
+                promptText.setAlpha(1).setText('▼');
+                msgText.setText(policeDialogues[talkPage]);
+            }
+        } 
+        // --- 3. 情報屋に話しかけた時 ---
+        else if (distToSpy < 50) {
+            isTalking = true;
+            currentEventTarget = 'spy';
+            msgBox.setAlpha(1); msgText.setAlpha(1);
+            
+            if (hasHintCard) {
+                msgText.setText("情報屋：\n「ミッションの件は伝えたはずだ。さあ、手に入れたヒントカードを早く警察官のところに持っていきな。」");
+                promptText.setAlpha(1).setText('●');
+            } else {
+                msgText.setText("情報屋：\n「おいおい、警察の回し者が何の用だ？…ミスターXの情報が欲しい？フン、タダでは教えられんな。俺の【ミッション】に挑戦するか？」");
+                promptText.setAlpha(0); // 選択肢を出すので▼は消す
+                showChoices(); // 選択肢を表示
+            }
         }
     });
+}
+
+function closeDialogue() {
+    msgBox.setAlpha(0); msgText.setAlpha(0); promptText.setAlpha(0);
+    isTalking = false;
+    currentEventTarget = null;
 }
 
 function setupNavButton(button) {
