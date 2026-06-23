@@ -4,204 +4,225 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>潜入捜査ゲーム</title>
-    <!-- 世界で最もエラーが起きないPhaser3の超安定バージョン -->
-    <script src="https://cloudflare.com"></script>
     <style>
-        /* 画面の余白を完全になくし、真っ黒な背景をベースにします */
-        html, body { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; overflow: hidden; }
-        /* ゲーム画面（キャンバス）を画面の真ん中に強制固定します */
-        canvas { display: block; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        /* 画面全体のデザイン（FF6風の黒背景） */
+        * { box-sizing: border-box; user-select: none; }
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; overflow: hidden; font-family: sans-serif; }
+        
+        /* ゲームの画面枠（スマホの縦画面サイズ） */
+        #game-screen {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 100%; max-width: 400px; height: 100%; max-height: 600px;
+            background-color: #111122; border: 2px solid #333; overflow: hidden;
+        }
+
+        /* キャラクターたちの配置 */
+        .character { position: absolute; width: 32px; height: 32px; border-radius: 4px; font-size: 10px; color: #fff; text-align: center; line-height: 32px; font-weight: bold; }
+        #player { background-color: #ff3333; border-radius: 50%; z-index: 10; transition: left 0.1s linear, top 0.1s linear; }
+        #police { background-color: #00aaff; left: 184px; top: 150px; }
+        #spy { background-color: #55ff55; left: 80px; top: 250px; color: #000; }
+
+        /* キャラクターの頭上の名前ラベル */
+        .label { position: absolute; width: 80px; text-align: center; color: #fff; font-size: 11px; transform: translateX(-24px); }
+
+        /* FF6風メッセージウィンドウ（ネイビーブルー、白二重枠） */
+        #msg-box {
+            position: absolute; bottom: 140px; left: 5%; width: 90%; height: 110px;
+            background: linear-gradient(to bottom, #000066, #000033);
+            border: 3px solid #fff; border-radius: 6px; box-shadow: 0 0 0 2px #000;
+            padding: 12px; color: #fff; font-size: 13px; line-height: 1.5;
+            display: none; z-index: 20;
+        }
+        #prompt-icon { position: absolute; bottom: 5px; right: 10px; font-size: 12px; animation: blink 0.8s infinite; }
+
+        /* 選択肢ボタンのエリア */
+        #choices-area { position: absolute; bottom: 260px; left: 5%; width: 90%; display: none; justify-content: space-around; z-index: 25; }
+        .choice-btn { background: #000055; border: 2px solid #fff; color: #fff; padding: 8px 16px; border-radius: 4px; font-size: 13px; cursor: pointer; }
+
+        /* スマホ用コントローラー（十字キーとAボタン） */
+        #controls { position: absolute; bottom: 10px; left: 0; width: 100%; height: 120px; display: flex; justify-content: space-between; padding: 0 20px; align-items: center; z-index: 30; }
+        #d-pad { position: relative; width: 100px; height: 100px; }
+        .pad-btn { position: absolute; width: 34px; height: 34px; background-color: #555; border: 1px solid #777; border-radius: 6px; active { background-color: #888; } }
+        #btn-up { top: 0; left: 33px; }
+        #btn-down { bottom: 0; left: 33px; }
+        #btn-left { top: 33px; left: 0; }
+        #btn-right { top: 33px; right: 0; }
+        #btn-a { width: 60px; height: 60px; background-color: #cc0000; border: 2px solid #fff; border-radius: 50%; color: #fff; font-size: 20px; font-weight: bold; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px #880000; }
+        #btn-a:active { transform: translateY(4px); box-shadow: none; }
+
+        @keyframes blink { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
     </style>
 </head>
 <body>
 
+<div id="game-screen">
+    <!-- キャラクター配置 -->
+    <div style="position: absolute; left: 184px; top: 130px;" class="label">男性警察官</div>
+    <div id="police" class="character">警</div>
+    
+    <div style="position: absolute; left: 80px; top: 230px;" class="label" style="color: #ffcc00;">情報屋</div>
+    <div id="spy" class="character">情</div>
+    
+    <div id="player" class="character"></div>
+
+    <!-- 選択肢画面 -->
+    <div id="choices-area">
+        <button class="choice-btn" onclick="selectChoice(1)">1: 挑戦する</button>
+        <button class="choice-btn" onclick="selectChoice(2)">2: やめる</button>
+    </div>
+
+    <!-- メッセージウィンドウ -->
+    <div id="msg-box">
+        <div id="msg-text"></div>
+        <div id="prompt-icon">▼</div>
+    </div>
+
+    <!-- コントローラー -->
+    <div id="controls">
+        <div id="d-pad">
+            <button id="btn-up" class="pad-btn"></button>
+            <button id="btn-down" class="pad-btn"></button>
+            <button id="btn-left" class="pad-btn"></button>
+            <button id="btn-right" class="pad-btn"></button>
+        </div>
+        <button id="btn-a">A</button>
+    </div>
+</div>
+
 <script>
-// ゲームの設定（スマホの縦画面サイズ。ブラウザが自動で画面に合わせて拡大縮小します）
-const config = {
-    type: Phaser.AUTO,
-    width: 400,
-    height: 600,
-    scale: {
-        mode: Phaser.Scale.FIT, // 画面に合わせて自動フィット
-        autoCenter: Phaser.Scale.CENTER_BOTH // 常に真ん中に配置
-    },
-    scene: { preload: preload, create: create, update: update }
-};
+// ゲームの内部データ・状態管理
+const pElem = document.getElementById('player');
+let pX = 184; // プレイヤーの初期X座標
+let pY = 320; // プレイヤーの初期Y座標
+pElem.style.left = pX + 'px';
+pElem.style.top = pY + 'px';
 
-const game = new Phaser.Game(config);
-let player;
-let policeNPC;
-let spyNPC; 
-let cursors;
-let msgBox, msgText, promptText;
-let choiceBox1, choiceBox2, choiceText1, choiceText2; 
-
-let currentEventTarget = null; 
 let isTalking = false;
-let isChoosing = false; 
+let isChoosing = false;
 let talkPage = 0;
-let hasHintCard = false; 
+let currentTarget = null;
+let hasHintCard = false;
 
 const policeDialogues = [
-    "警察官：\n「よく来てくれた。実は現在、我々警察はある重大な事件の犯人『ミスターX』を追っている…。」",
-    "警察官：\n「そこで君に頼みがある。この会場内の各イベントブースに潜む【情報屋】から、ミスターXに関する『ヒントカード』を集めてきてほしい。」",
-    "警察官：\n「ただし、情報屋どもは口が固い。彼らの信用を得るためには、各ブースで提示される【ミッション】を達成する必要があるだろう。」",
-    "警察官：\n「無事にヒントカードを手に入れたら、またここに戻ってきて私に報告してくれ。頼んだぞ！」"
+    "警察官：<br>「よく来てくれた。実は現在、我々警察はある重大な事件の犯人『ミスターX』を追っている…。」",
+    "警察官：<br>「そこでお前に頼みがある。この会場内の各イベントブースに潜む【情報屋】から、ミスターXに関する『ヒントカード』を集めてきてほしい。」",
+    "警察官：<br>「ただし、情報屋どもは口が固い。彼らの信用を得るためには、各ブースで提示される【ミッション】を達成する必要があるだろう。」",
+    "警察官：<br>「無事にヒントカードを手に入れたら、またここに戻ってきて私に報告してくれ。頼んだぞ！」"
 ];
 
-let btnUp, btnDown, btnLeft, btnRight, btnA;
-
-function preload() {
-    // 通信エラーを100%防ぐため、外部画像（URL）の読み込みは一切行いません。
+// キャラクター移動処理（スマホの長押し対応）
+let moveInterval = null;
+function startMove(dx, dy) {
+    if (isTalking || isChoosing) return;
+    if (moveInterval) clearInterval(moveInterval);
+    moveInterval = setInterval(() => {
+        pX = Math.max(10, Math.min(350, pX + dx));
+        pY = Math.max(10, Math.min(430, pY + dy));
+        pElem.style.left = pX + 'px';
+        pElem.style.top = pY + 'px';
+    }, 30);
 }
+function stopMove() { clearInterval(moveInterval); }
 
-function create() {
-    // 画面に「ゲームが起動していること」がすぐ分かるよう、背景に薄いグレーの枠を敷きます
-    this.add.rectangle(200, 300, 400, 600, 0x111122);
+// コントローラーのボタンイベント登録
+document.getElementById('btn-up').addEventListener('touchstart', () => startMove(0, -6));
+document.getElementById('btn-down').addEventListener('touchstart', () => startMove(0, 6));
+document.getElementById('btn-left').addEventListener('touchstart', () => startMove(0, -6));
+document.getElementById('btn-right').addEventListener('touchstart', () => startMove(0, 6));
+window.addEventListener('touchend', stopMove);
 
-    // 1. 男性警察官（水色の四角）
-    policeNPC = this.add.rectangle(200, 150, 32, 32, 0x00aaff);
-    this.add.text(165, 110, '男性警察官', { fontSize: '12px', fill: '#fff' });
+// PCテスト用キーボード操作
+window.addEventListener('keydown', (e) => {
+    if (isTalking || isChoosing) return;
+    if (e.key === 'ArrowUp') pY = Math.max(10, pY - 8);
+    if (e.key === 'ArrowDown') pY = Math.min(430, pY + 8);
+    if (e.key === 'ArrowLeft') pX = Math.max(10, pX - 8);
+    if (e.key === 'ArrowRight') pX = Math.min(350, pX + 8);
+    pElem.style.left = pX + 'px'; pElem.style.top = pY + 'px';
+    if (e.key === ' ' || e.key === 'z') handleAction();
+});
 
-    // 2. 情報屋ブース（黄緑色の四角）
-    spyNPC = this.add.rectangle(80, 250, 32, 32, 0x55ff55);
-    this.add.text(50, 210, '情報屋ブース', { fontSize: '12px', fill: '#ffcc00' });
+// Aボタン（決定キー）を押した時の処理
+document.getElementById('btn-a').addEventListener('click', handleAction);
 
-    // 3. プレイヤー（あなた・赤色の丸）
-    player = this.add.circle(200, 350, 16, 0xff3333);
+function handleAction() {
+    if (isChoosing) return;
 
-    // PCでのテスト用キーボード
-    cursors = this.input.keyboard.createCursorKeys();
+    const msgBox = document.getElementById('msg-box');
+    const msgText = document.getElementById('msg-text');
+    const promptIcon = document.getElementById('prompt-icon');
 
-    // 5. メッセージウィンドウ
-    msgBox = this.add.rectangle(200, 500, 360, 120, 0x000055).setStrokeStyle(3, 0xffffff).setAlpha(0);
-    msgText = this.add.text(40, 460, '', { fontSize: '14px', fill: '#fff', wordWrap: { width: 320 }, lineSpacing: 6 }).setAlpha(0);
-    promptText = this.add.text(340, 535, '▼', { fontSize: '14px', fill: '#fff' }).setAlpha(0);
+    // 警察官、情報屋との距離を計算
+    const distToPolice = Math.hypot(pX - 184, pY - 150);
+    const distToSpy = Math.hypot(pX - 80, pY - 250);
 
-    // 6. 選択肢
-    choiceBox1 = this.add.rectangle(120, 410, 120, 40, 0x000055).setStrokeStyle(2, 0xffffff).setAlpha(0).setInteractive();
-    choiceText1 = this.add.text(95, 400, '1: 挑戦する', { fontSize: '14px', fill: '#fff' }).setAlpha(0);
-    
-    choiceBox2 = this.add.rectangle(280, 410, 120, 40, 0x000055).setStrokeStyle(2, 0xffffff).setAlpha(0).setInteractive();
-    choiceText2 = this.add.text(255, 400, '2: やめる', { fontSize: '14px', fill: '#fff' }).setAlpha(0);
-
-    setupChoiceButtons();
-    createMobileControls(this);
-}
-
-function update() {
-    if (isTalking || isChoosing) return; 
-
-    let speed = 4;
-    if (cursors.left.isDown || (btnLeft && btnLeft.isDown)) player.x -= speed;
-    else if (cursors.right.isDown || (btnRight && btnRight.isDown)) player.x += speed;
-
-    if (cursors.up.isDown || (btnUp && btnUp.isDown)) player.y -= speed;
-    else if (cursors.down.isDown || (btnDown && btnDown.isDown)) player.y += speed;
-}
-
-function setupChoiceButtons() {
-    choiceBox1.on('pointerdown', () => {
-        hideChoices();
-        msgText.setText("情報屋：\n「いい度胸だ。では【実際のイベントブースの展示】を見て、ミスターXの靴の色を確認してくるんだ！それが君のミッションだ。クリアしたらカードをやろう」");
-        hasHintCard = true; 
-        promptText.setAlpha(1).setText('●');
-    });
-
-    choiceBox2.on('pointerdown', () => {
-        hideChoices();
-        msgText.setText("情報屋：\n「冷やかしなら帰んな。ミスターXの情報が欲しくなったらまた来な。」");
-        promptText.setAlpha(1).setText('●');
-    });
-}
-
-function showChoices() {
-    isChoosing = true;
-    choiceBox1.setAlpha(1); choiceText1.setAlpha(1);
-    choiceBox2.setAlpha(1); choiceText2.setAlpha(1);
-}
-
-function hideChoices() {
-    isChoosing = false;
-    choiceBox1.setAlpha(0); choiceText1.setAlpha(0);
-    choiceBox2.setAlpha(0); choiceText2.setAlpha(0);
-}
-
-function createMobileControls(scene) {
-    const btnColor = 0x555555;
-    
-    btnUp = scene.add.circle(100, 400, 25, btnColor).setInteractive();
-    btnDown = scene.add.circle(100, 500, 25, btnColor).setInteractive();
-    btnLeft = scene.add.circle(50, 450, 25, btnColor).setInteractive();
-    btnRight = scene.add.circle(150, 450, 25, btnColor).setInteractive();
-    
-    btnA = scene.add.circle(320, 450, 35, 0xcc0000).setInteractive();
-    scene.add.text(312, 438, 'A', { fontSize: '24px', fill: '#fff', fontWeight: 'bold' });
-
-    setupNavButton(btnUp); setupNavButton(btnDown); setupNavButton(btnLeft); setupNavButton(btnRight);
-
-    btnA.on('pointerdown', () => {
-        if (isChoosing) return; 
-
-        let distToPolice = Phaser.Math.Distance.Between(player.x, player.y, policeNPC.x, policeNPC.y);
-        let distToSpy = Phaser.Math.Distance.Between(player.x, player.y, spyNPC.x, spyNPC.y);
-        
-        if (isTalking) {
-            if (currentEventTarget === 'police') {
-                talkPage++;
-                if (talkPage < policeDialogues.length) {
-                    msgText.setText(policeDialogues[talkPage]);
-                    if (talkPage === policeDialogues.length - 1) promptText.setText('●');
-                } else {
-                    closeDialogue();
-                }
-            } else if (currentEventTarget === 'spy' || currentEventTarget === 'police_end') {
+    if (isTalking) {
+        if (currentTarget === 'police') {
+            talkPage++;
+            if (talkPage < policeDialogues.length) {
+                msgText.innerHTML = policeDialogues[talkPage];
+                if (talkPage === policeDialogues.length - 1) promptIcon.innerHTML = '●';
+            } else {
                 closeDialogue();
             }
-        } 
-        else if (distToPolice < 50) {
-            isTalking = true;
-            msgBox.setAlpha(1); msgText.setAlpha(1);
-            
-            if (hasHintCard) {
-                currentEventTarget = 'police_end';
-                msgText.setText("警察官：\n「おお！情報屋からヒントカードを勝ち取ってきたな！さすがは優秀な捜査官だ。これでミスターXの逮捕に一歩近づいたぞ！」");
-                promptText.setAlpha(1).setText('●');
-            } else {
-                currentEventTarget = 'police';
-                talkPage = 0;
-                promptText.setAlpha(1).setText('▼');
-                msgText.setText(policeDialogues[talkPage]);
-            }
-        } 
-        else if (distToSpy < 50) {
-            isTalking = true;
-            currentEventTarget = 'spy';
-            msgBox.setAlpha(1); msgText.setAlpha(1);
-            
-            if (hasHintCard) {
-                msgText.setText("情報屋：\n「ミッションの件は伝えたはずだ。さあ、手に入れたヒントカードを早く警察官のところに持っていきな。」");
-                promptText.setAlpha(1).setText('●');
-            } else {
-                msgText.setText("情報屋：\n「おいおい、警察の回し者が何の用だ？…ミスターXの情報が欲しい？フン、タダでは教えられんな。俺の【ミッション】に挑戦するか？」");
-                promptText.setAlpha(0); 
-                showChoices(); 
-            }
+        } else {
+            closeDialogue();
         }
-    });
+    } 
+    // 警察官に話しかける
+    else if (distToPolice < 50) {
+        isTalking = true;
+        msgBox.style.display = 'block';
+        if (hasHintCard) {
+            currentTarget = 'police_end';
+            msgText.innerHTML = "警察官：<br>「おお！情報屋からヒントカードを勝ち取ってきたな！さすがは優秀な捜査官だ。これでミスターXの逮捕に一歩近づいたぞ！」";
+            promptIcon.innerHTML = '●';
+        } else {
+            currentTarget = 'police';
+            talkPage = 0;
+            msgText.innerHTML = policeDialogues[talkPage];
+            promptIcon.innerHTML = '▼';
+        }
+    } 
+    // 情報屋に話しかける
+    else if (distToSpy < 50) {
+        isTalking = true;
+        msgBox.style.display = 'block';
+        if (hasHintCard) {
+            currentTarget = 'spy_end';
+            msgText.innerHTML = "情報屋：<br>「ミッションの件は伝えたはずだ。さあ、手に入れたヒントカードを早く警察官のところに持っていきな。」";
+            promptIcon.innerHTML = '●';
+        } else {
+            currentTarget = 'spy';
+            msgText.innerHTML = "情報屋：<br>「おいおい、警察の回し者が何の用だ？…ミスターXの情報が欲しい？フン、タダでは教えられんな。俺の【ミッション】に挑戦するか？」";
+            promptIcon.style.display = 'none';
+            document.getElementById('choices-area').style.display = 'flex';
+            isChoosing = true;
+        }
+    }
+}
+
+// 選択肢を選んだ時の処理
+function selectChoice(num) {
+    isChoosing = false;
+    document.getElementById('choices-area').style.display = 'none';
+    const msgText = document.getElementById('msg-text');
+    const promptIcon = document.getElementById('prompt-icon');
+    promptIcon.style.display = 'block';
+    promptIcon.innerHTML = '●';
+
+    if (num === 1) {
+        msgText.innerHTML = "情報屋：<br>「いい度胸だ。では【実際のイベントブースの展示】を見て、ミスターXの靴の色を確認してくるんだ！それが君のミッションだ。クリアしたらカードをやろう」";
+        hasHintCard = true;
+    } else {
+        msgText.innerHTML = "情報屋：<br>「冷やかしなら帰んな。ミスターXの情報が欲しくなったらまた来な。」";
+    }
 }
 
 function closeDialogue() {
-    msgBox.setAlpha(0); msgText.setAlpha(0); promptText.setAlpha(0);
+    document.getElementById('msg-box').style.display = 'none';
     isTalking = false;
-    currentEventTarget = null;
-}
-
-function setupNavButton(button) {
-    button.isDown = false;
-    button.on('pointerdown', () => { button.isDown = true; button.setFillStyle(0x888888); });
-    button.on('pointerup', () => { button.isDown = false; button.setFillStyle(0x555555); });
-    button.on('pointerout', () => { button.isDown = false; button.setFillStyle(0x555555); });
+    currentTarget = null;
 }
 </script>
 
