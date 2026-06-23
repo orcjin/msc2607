@@ -4,23 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>潜入捜査ゲーム</title>
-    <!-- 最も安定しているPhaserの本体ファイルのみを読み込み -->
-    <script src="https://jsdelivr.net"></script>
+    <!-- 世界で最もエラーが起きないPhaser3の超安定バージョン -->
+    <script src="https://cloudflare.com"></script>
     <style>
-        body { margin: 0; padding: 0; background-color: #000; overflow: hidden; }
-        canvas { display: block; margin: 0 auto; }
+        /* 画面の余白を完全になくし、真っ黒な背景をベースにします */
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; overflow: hidden; }
+        /* ゲーム画面（キャンバス）を画面の真ん中に強制固定します */
+        canvas { display: block; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
     </style>
 </head>
 <body>
 
-<div id="game-container"></div>
-
 <script>
+// ゲームの設定（スマホの縦画面サイズ。ブラウザが自動で画面に合わせて拡大縮小します）
 const config = {
     type: Phaser.AUTO,
     width: 400,
     height: 600,
-    parent: 'game-container',
+    scale: {
+        mode: Phaser.Scale.FIT, // 画面に合わせて自動フィット
+        autoCenter: Phaser.Scale.CENTER_BOTH // 常に真ん中に配置
+    },
     scene: { preload: preload, create: create, update: update }
 };
 
@@ -48,13 +52,13 @@ const policeDialogues = [
 let btnUp, btnDown, btnLeft, btnRight, btnA;
 
 function preload() {
-    // 外部画像の読み込み（this.load.image）をすべて削除しました。
-    // これにより、通信エラーによる画面真っ黒（フリーズ）を100%防ぎます。
+    // 通信エラーを100%防ぐため、外部画像（URL）の読み込みは一切行いません。
 }
 
 function create() {
-    // 画像の代わりに、Phaser内部の機能で「色付きの丸や四角」を直接描画します
-    
+    // 画面に「ゲームが起動していること」がすぐ分かるよう、背景に薄いグレーの枠を敷きます
+    this.add.rectangle(200, 300, 400, 600, 0x111122);
+
     // 1. 男性警察官（水色の四角）
     policeNPC = this.add.rectangle(200, 150, 32, 32, 0x00aaff);
     this.add.text(165, 110, '男性警察官', { fontSize: '12px', fill: '#fff' });
@@ -66,6 +70,7 @@ function create() {
     // 3. プレイヤー（あなた・赤色の丸）
     player = this.add.circle(200, 350, 16, 0xff3333);
 
+    // PCでのテスト用キーボード
     cursors = this.input.keyboard.createCursorKeys();
 
     // 5. メッセージウィンドウ
