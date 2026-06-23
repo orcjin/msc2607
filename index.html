@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FF6風 イベント体験ゲーム (Phaser 4)</title>
+    <!-- Phaser 4 の最新版CDNを読み込み -->
+    <script src="https://jsdelivr.net"></script>
+    <style>
+        body { margin: 0; padding: 0; background-color: #000; overflow: hidden; }
+        canvas { display: block; margin: 0 auto; }
+    </style>
+</head>
+<body>
+
+<script>
+// ゲームの設定（スマホの縦画面を想定したサイズ）
+const config = {
+    type: Phaser.AUTO,
+    width: 400,
+    height: 600,
+    parent: 'game-container',
+    scene: { preload: preload, create: create, update: update }
+};
+
+const game = new Phaser.Game(config);
+let player;
+let npc;
+let cursors;
+let msgBox;
+let msgText;
+let isTalking = false;
+
+// スマホ操作用の仮想ボタン
+let btnUp, btnDown, btnLeft, btnRight, btnA;
+
+function preload() {
+    // 画像アセットがないため、今回はpreloadは空欄（四角形で代用）
+}
+
+function create() {
+    // 1. イベント会場の受付NPC（緑色の四角）
+    npc = this.add.rectangle(200, 150, 32, 32, 0x00ff00);
+    this.add.text(170, 110, '受付係', { fontSize: '14px', fill: '#fff' });
+
+    // 2. プレイヤー（FF6の勇者役・青色の四角）
+    player = this.add.rectangle(200, 300, 32, 32, 0x0000ff);
+
+    // 3. キーボード操作の設定（PCテスト用）
+    cursors = this.input.keyboard.createCursorKeys();
+
+    // 4. メッセージウィンドウ（最初は非表示）
+    msgBox = this.add.rectangle(200, 500, 360, 100, 0x000088).setStrokeStyle(3, 0xffffff).setAlpha(0);
+    msgText = this.add.text(40, 470, '', { fontSize: '16px', fill: '#fff', wordWrap: { width: 320 } }).setAlpha(0);
+
+    // 5. 【スマホ用】画面下のバーチャル十字キーとAボタンの描画
+    createMobileControls(this);
+}
+
+function update() {
+    if (isTalking) return; // 会話中は動けない
+
+    let speed = 4;
+
+    // PCキーボード、またはスマホボタンの入力検知
+    if (cursors.left.isDown || (btnLeft && btnLeft.isDown)) {
+        player.x -= speed;
+    } else if (cursors.right.isDown || (btnRight && btnRight.isDown)) {
+        player.x += speed;
+    }
+
+    if (cursors.up.isDown || (btnUp && btnUp.isDown)) {
+        player.y -= speed;
+    } else if (cursors.down.isDown || (btnDown && btnDown.isDown)) {
+        player.y += speed;
+    }
+}
+
+// スマホ用コントローラーを作る関数
+function createMobileControls(scene) {
+    const btnColor = 0x555555;
+    
+    // 各ボタンを画面下部に配置（インタラクティブ設定）
+    btnUp = scene.add.circle(100, 420, 25, btnColor).setInteractive();
+    btnDown = scene.add.circle(100, 520, 25, btnColor).setInteractive();
+    btnLeft = scene.add.circle(50, 470, 25, btnColor).setInteractive();
+    btnRight = scene.add.circle(150, 470, 25, btnColor).setInteractive();
+    
+    // Aボタン（決定キー）
+    btnA = scene.add.circle(320, 470, 35, 0xcc0000).setInteractive();
+    scene.add.text(312, 458, 'A', { fontSize: '24px', fill: '#fff', fontWeight: 'bold' });
+
+    // タッチイベントの登録
+    setupNavButton(btnUp);
+    setupNavButton(btnDown);
+    setupNavButton(btnLeft);
+    setupNavButton(btnRight);
+
+    // Aボタンを押した時の処理（受付との距離を判定して会話）
+    btnA.on('pointerdown', () => {
+        let dist = Phaser.Math.Distance.Between(player.x, player.y, npc.x, npc.y);
+        
+        if (isTalking) {
+            // 会話終了
+            msgBox.setAlpha(0);
+            msgText.setAlpha(0);
+            isTalking = false;
+        } else if (dist < 50) {
+            // 受付の近くでAを押したら会話開始
+            msgBox.setAlpha(1);
+            msgText.setAlpha(1);
+            msgText.setText("受付：\n「ようこそイベント会場へ！\nまずは受付のため、お名刺を1枚ご提示ください」");
+            isTalking = true;
+        }
+    });
+}
+
+function setupNavButton(button) {
+    button.isDown = false;
+    button.on('pointerdown', () => { button.isDown = true; button.setFillStyle(0x888888); });
+    button.on('pointerup', () => { button.isDown = false; button.setFillStyle(0x555555); });
+    button.on('pointerout', () => { button.isDown = false; button.setFillStyle(0x555555); });
+}
+</script>
+
+</body>
+</html>
