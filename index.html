@@ -252,3 +252,7 @@ function handleAction() {
         if (hasHintCard) {
             currentTarget = 'spy_end';
             msgText.innerHTML = "情報屋：<br>「ミッションの件は伝えたはずだ。さあ、手に入れたヒントカードを早く警察官のところに持っていきな。」";
+
+promptIcon.innerHTML = '●';} else {currentTarget = 'spy';msgText.innerHTML = "情報屋：「おいおい、警察の回し者が何の用だ？…ミスターXの情報が欲しい？フン、タダでは教えられんな。俺の【ミッション】に挑戦するか？」";promptIcon.style.display = 'none';document.getElementById('choices-area').style.display = 'flex';isChoosing = true;}}}
+
+function selectChoice(num) {isChoosing = false;document.getElementById('choices-area').style.display = 'none';const msgText = document.getElementById('msg-text');const promptIcon = document.getElementById('prompt-icon');promptIcon.style.display = 'block';promptIcon.innerHTML = '●';if (num === 1) {msgText.innerHTML = "情報屋：「いい度胸だ。では【実際のイベントブースの展示】を見て、ミスターXの靴の色を確認してくるんだ！それが君のミッションだ。クリアしたらカードをやろう」";hasHintCard = true;} else {msgText.innerHTML = "情報屋：「冷やかしなら帰んな。ミスターXの情報が欲しくなったらまた来な。」";}}function closeDialogue() {document.getElementById('msg-box').style.display = 'none';isTalking = false;currentTarget = null;}
